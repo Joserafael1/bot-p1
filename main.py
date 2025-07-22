@@ -1,20 +1,18 @@
-import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ApplicationBuilder, ContextTypes, ChatMemberHandler
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from flask import Flask
-from datetime import datetime, timedelta
+import asyncio
 import schedule
 import time
-import threading
+from threading import Thread
+from datetime import datetime, timedelta
 
 BOT_TOKEN = "8062761924:AAGcLjqxM2WL48N-pVw8tynhlCuH1D4_snY"
 CHAT_ID = "-1002877323438"
 
-# Mensaje bienvenida a nuevos integrantes
 async def bienvenida(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    result = update.chat_member
-    if result.new_chat_member.status == "member":
-        nombre = result.new_chat_member.user.first_name
+    for miembro in update.message.new_chat_members:
+        nombre = miembro.first_name
         mensaje = (
             f"👋 *¡Bienvenido/a, {nombre}, a la comunidad P.1🦁!*\n\n"
             "Recuerda revisar los mensajes anclados donde encontrarás:\n"
@@ -30,7 +28,6 @@ async def bienvenida(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         await context.bot.send_message(chat_id=CHAT_ID, text=mensaje, parse_mode="Markdown", reply_markup=botones)
 
-# Mensaje diario de buenos días
 async def buenos_dias(context: ContextTypes.DEFAULT_TYPE):
     fecha = datetime.utcnow() - timedelta(hours=5)
     dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -54,29 +51,32 @@ async def buenos_dias(context: ContextTypes.DEFAULT_TYPE):
     ])
     await context.bot.send_message(chat_id=CHAT_ID, text=mensaje, parse_mode="Markdown", reply_markup=botones)
 
-# Flask app para mantener vivo el bot
 app = Flask(__name__)
-
 @app.route('/')
 def home():
     return "Bot activo ✅"
 
-def job(app_bot):
-    app_bot.create_task(buenos_dias(app_bot.bot))
-
-def run_schedule(app_bot):
-    schedule.every().day.at("07:00").do(job, app_bot)
-    while True:
-        schedule.run_pending()
-        time.sleep(10)
+Thread(target=lambda: app.run(host='0.0.0.0', port=10000), daemon=True).start()
 
 async def main():
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-    app_bot.add_handler(ChatMemberHandler(bienvenida, ChatMemberHandler.CHAT_MEMBER))
-    threading.Thread(target=run_schedule, args=(app_bot,), daemon=True).start()
+    app_bot.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, bienvenida))
+
+    def job():
+        app_bot.create_task(buenos_dias(app_bot.bot))
+
+    schedule.every().day.at("12:00").do(job)
+
+    def run_schedule():
+        while True:
+            schedule.run_pending()
+            time.sleep(10)
+
+    Thread(target=run_schedule, daemon=True).start()
+
     await app_bot.run_polling()
 
 if __name__ == "__main__":
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=10000), daemon=True).start()
     asyncio.run(main())
+
 
