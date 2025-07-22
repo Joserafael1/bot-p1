@@ -7,10 +7,11 @@ import time
 from threading import Thread
 from datetime import datetime, timedelta
 
+# ✅ Token del bot y chat ID
 BOT_TOKEN = "8062761924:AAGcLjqxM2WL48N-pVw8tynhlCuH1D4_snY"
 CHAT_ID = "-1002877323438"
 
-# Mensaje bienvenida a nuevos integrantes
+# ✅ Mensaje de bienvenida a nuevos integrantes
 async def bienvenida(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for miembro in update.message.new_chat_members:
         nombre = miembro.first_name
@@ -29,11 +30,12 @@ async def bienvenida(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         await context.bot.send_message(chat_id=CHAT_ID, text=mensaje, parse_mode="Markdown", reply_markup=botones)
 
-# Mensaje diario de buenos días
+# ✅ Mensaje diario de buenos días
 async def buenos_dias(context: ContextTypes.DEFAULT_TYPE):
-    fecha = datetime.utcnow() - timedelta(hours=5)
+    fecha = datetime.utcnow() - timedelta(hours=5)  # Hora de Houston
     dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-    meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+    meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+             'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
     mensaje = (
         f"🌞 *¡Muy buenos días, familia P.1🦁!*\n\n"
         f"🗓️ Hoy es *{dias[fecha.weekday()]} {fecha.day} de {meses[fecha.month - 1]} de {fecha.year}*.\n\n"
@@ -53,19 +55,23 @@ async def buenos_dias(context: ContextTypes.DEFAULT_TYPE):
     ])
     await context.bot.send_message(chat_id=CHAT_ID, text=mensaje, parse_mode="Markdown", reply_markup=botones)
 
-# Flask app para mantener vivo el bot
+# ✅ Web app para mantener el bot vivo en Render
 app = Flask(__name__)
 @app.route('/')
 def home():
     return "Bot activo ✅"
 
+# Inicia la app de Flask en segundo plano
 Thread(target=lambda: app.run(host='0.0.0.0', port=10000), daemon=True).start()
 
-# Main del bot
+# ✅ Función principal del bot
 async def main():
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    # Handler para nuevas personas en el grupo
     app_bot.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, bienvenida))
 
+    # Tarea programada de buenos días (a las 07:00 hora de Houston = 12:00 UTC)
     def job():
         app_bot.create_task(buenos_dias(app_bot.bot))
 
@@ -79,5 +85,7 @@ async def main():
     Thread(target=run_schedule, daemon=True).start()
     await app_bot.run_polling()
 
+# ✅ Ejecuta el bot
 if __name__ == "__main__":
     asyncio.run(main())
+
